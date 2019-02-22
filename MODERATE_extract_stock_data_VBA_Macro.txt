@@ -1,0 +1,93 @@
+Attribute VB_Name = "Module1"
+Sub extract_stock_data()
+
+    'Level 1 Assignment
+    '<ticker>    <date>  <open>  <high>  <low>   <close> <vol>       Rsl Tickr     Rsl Accum Vol
+    'COLS> 1        2       3      4       5        6      7    <8>      9               10
+    'Level 2 Assignment
+    '<ticker>    <date>  <open>  <high>  <low>   <close> <vol> <blnk> Rsl Tickr  Yr Change   % Change   Rsl Accum Vol
+    'COLS> 1        2       3      4       5        6      7    <8>      9         10          11           12
+ 
+    Dim inrow, outrow As Long
+    Dim current_ticker_symbol As String
+    Dim previous_ticker_symbol As String
+    Dim lastrow As Long
+    Dim yropen, yrclos As Double
+  
+    Dim WS_Count As Integer
+    Dim I As Integer
+  
+    ' Set WS_Count equal to the number of worksheets in the active
+    ' workbook.
+  
+    WS_Count = ActiveWorkbook.Worksheets.Count
+
+    For I = 1 To WS_Count 'begin worksheet loop
+    ' For I = 1 To 1 'Only one WS to until after successful test
+    
+        'junk: MsgBox ActiveWorkbook.Worksheets(I).Name
+        
+        'Initialize to get set up to run through each individual sheet
+        Worksheets(I).Activate 'Activate the current worksheet
+    
+        
+        lastrow = Cells(Rows.Count, 1).End(xlUp).Row 'Get value of last row so you # lines of data to process
+        
+        'initialize @ start of each new sheet...
+        
+        Columns(9).EntireColumn.Delete 'CLear out 4 columns of old data if its there...
+        Columns(9).EntireColumn.Delete
+        Columns(9).EntireColumn.Delete
+        Columns(9).EntireColumn.Delete
+        
+        Columns(12).ColumnWidth = 15
+        
+        previous_ticker_symbol = ""
+        Cells(1, 9).Value = "Rsl Tckr Sym" 'write the heading text to result columns
+        Cells(1, 10).Value = "Year Change"
+        Cells(1, 11).Value = " % Change"
+        Cells(1, 12).Value = "Rsl Acc Vol"
+        outrow = 2
+        
+        For inrow = 2 To lastrow
+            'try usign the lookahead approach to simplify the loops???
+            current_ticker_symbol = Cells(inrow, 1).Value 'Must bee that first ticker is not null
+            If (previous_ticker_symbol <> current_ticker_symbol) Then
+                ' If here you are either...
+                ' just starting a new sheet (previous_ticker_symbol== <null> OR
+                ' a new set of Ticker was found OR
+                ' have run past the end of the data at the end of this sheet: current_ticker_symbol = <null>
+                Cells(outrow, 9).Value = current_ticker_symbol 'load new ticker to output field
+                Cells(outrow, 12).Value = Cells(outrow, 7) 'copy opening year volume (nortmally == 0)
+                yropen = Cells(inrow, 3).Value 'save start of year opening value for use at end of year
+                previous_ticker_symbol = current_ticker_symbol 'ready to move on to next row of data, whatever the ticker
+            Else
+                'No change in ticker, do the math...
+                Cells(outrow, 12).Value = Cells(outrow, 12).Value + Cells(inrow, 7).Value 'accumulate volume
+            End If
+            If (Cells(inrow + 1, 1).Value <> current_ticker_symbol) Then
+                'Lookahead to see if we are about to move into a new ticker data set
+                'if so get the closing ticker value at the last line of the data set
+                yrclos = Cells(inrow, 6).Value
+                Cells(outrow, 10).Value = yrclos - yropen 'load amount chnage over year
+                Cells(outrow, 10).NumberFormat = "0.00"
+                If (Cells(outrow, 10).Value < 0) Then
+                    Cells(outrow, 10).Interior.ColorIndex = 3 '3 is red
+                Else
+                    Cells(outrow, 10).Interior.ColorIndex = 4 '4 is GREEN
+                End If
+                If yropen = 0 Then 'handle division by zero situation
+                    Cells(outrow, 11).Value = 0 'load % change over year
+                Else
+                    Cells(outrow, 11).Value = yrclos / yropen 'load % change over year
+                End If
+                Cells(outrow, 11).NumberFormat = "0.00%"
+                outrow = outrow + 1 'increment the output row for next ticker
+            End If
+     
+        Next inrow
+        
+    Next I
+
+End Sub
+
